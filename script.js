@@ -385,21 +385,35 @@ function setup() {
             const token = localStorage.getItem('token');
             if (!token) return;
             try {
-                let res = await fetch('http://localhost:5000/api/posts', {
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
-                if (res.ok) this.feedPosts = await res.json();
+                // Production-Aware Social Fetch (Backend -> LocalStorage Fallback)
+                const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:5000' : 'https://api.study-ai.com';
+                
+                let res = await fetch(`${API_BASE}/api/posts`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }).catch(() => null);
 
-                let uRes = await fetch('http://localhost:5000/api/users/search', {
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
-                if (uRes.ok) {
+                if (res && res.ok) {
+                    this.feedPosts = await res.json();
+                } else {
+                    this.feedPosts = JSON.parse(localStorage.getItem('studygram_posts') || '[]');
+                    console.warn('Backend unreachable, using cached posts.');
+                }
+
+                let uRes = await fetch(`${API_BASE}/api/users/search`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }).catch(() => null);
+
+                if (uRes && uRes.ok) {
                     let users = await uRes.json();
                     this.messengerFriends = users.filter(u => u.id !== this.userProfile.id).map(u => ({
                         id: u.id, name: u.name, avatar: u.avatar, online: true, lastMsg: 'Tap to chat'
                     }));
+                } else {
+                    this.messengerFriends = JSON.parse(localStorage.getItem('local_users') || '[]');
                 }
-            } catch (e) { }
+            } catch (e) { 
+                this.showToast('Network error: Please check your connection or API settings.');
+            }
         },
 
         deletePost(postId) {
@@ -1226,27 +1240,57 @@ function setup() {
             }
 
             try {
+            try {
                 if (useCloudProxy) {
                     const token = localStorage.getItem('token');
-                    const response = await fetch('http://localhost:5000/api/ai/chat', {
-                        method: 'POST',
-                        headers: { 
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({
-                            model: currentModelConf.provider === 'cloud' ? 'gpt-4o-mini' : currentModelConf.id,
-                            messages: [{ role: 'user', content: userText }],
-                            provider: currentModelConf.provider === 'cloud' ? 'openai' : currentModelConf.provider
-                        })
-                    });
+                    let response;
+                    
+                    // SMART CONNECT: Try Local Backend First, then Fallback to Direct OpenRouter (Client-Side)
+                    try {
+                        response = await fetch('http://localhost:5000/api/ai/chat', {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify({
+                                model: currentModelConf.provider === 'cloud' ? 'gpt-4o-mini' : currentModelConf.id,
+                                messages: [{ role: 'user', content: userText }],
+                                provider: currentModelConf.provider === 'cloud' ? 'openai' : currentModelConf.provider
+                            })
+                        });
+                    } catch (e) {
+                        // BACKEND OFFLINE (GitHub Pages / Local Server not running) -> Direct OpenRouter Call
+                        console.log("Local server offline, using Direct OpenRouter Fallback...");
+                        const OR_KEY = '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';
+                        response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${OR_KEY}`,
+                                'HTTP-Referer': window.location.origin,
+                                'X-Title': 'Study.AI Pro'
+                            },
+                            body: JSON.stringify({
+                                model: currentModelConf.id === 'default' ? 'google/gemini-2.0-flash-exp:free' : currentModelConf.id,
+                                messages: [{ role: 'user', content: userText }]
+                            })
+                        });
+                    }
+
                     const data = await response.json();
                     if (!response.ok) {
                         const errMsg = (data.error && data.error.message) ? data.error.message : (data.error || `Server Error ${response.status}`);
                         throw new Error(errMsg);
                     }
+                    
                     if (data.choices && data.choices[0]) {
-                        this.chatMessages.push({ role: 'model', text: data.choices[0].message.content });
+                        const content = data.choices[0].message.content;
+                        this.chatMessages.push({ role: 'model', text: content });
+                        this.isChatting = false;
+                        return;
+                    } else if (data.data && data.data.content) { // Handle varied response formats
+                        this.chatMessages.push({ role: 'model', text: data.data.content });
                         this.isChatting = false;
                         return;
                     } else {
@@ -1371,7 +1415,7 @@ function setup() {
                 if (err.message && err.message !== 'Failed to fetch') {
                     displayMsg = `Error: ${err.message}`;
                 } else {
-                    displayMsg = 'Network error: The AI server (localhost:5000) seems to be offline. Please start it with "node server.js".';
+                    displayMsg = 'Production Update: The local AI server (localhost:5000) is currently offline, switching to Direct Cloud Engine... Please refresh if the error persists.';
                 }
                 
                 this.chatMessages.push({ role: 'model', text: displayMsg });
