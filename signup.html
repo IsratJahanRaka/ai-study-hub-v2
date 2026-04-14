@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en" :class="{ 'dark': isDark }" x-data="signupSetup()">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - Study.AI Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        }
+    </script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Google Auth Global Callback -->
+    <script>
+        async function handleGoogleCredential(response) {
+            try {
+                const res = await fetch('http://localhost:5000/api/auth/google', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ credential: response.credential })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    localStorage.setItem('loggedIn', 'true');
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('userProfile', JSON.stringify({
+                        id: data.user.id,
+                        name: data.user.name,
+                        email: data.user.email,
+                        avatar: data.user.avatar,
+                        googleLinked: true
+                    }));
+                    window.location.href = 'index.html';
+                } else {
+                    alert('Google login failed: ' + data.error);
+                }
+            } catch (err) {
+                alert('Backend server is offline! Start it on port 5000.');
+            }
+        }
+    </script>
+</head>
+
+<body
+    class="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 min-h-screen flex items-center justify-center transition-colors duration-300 py-10 relative">
+
+    <!-- Theme Toggle -->
+    <div class="absolute top-6 right-6 z-50">
+        <button @click="toggleTheme()"
+            class="w-12 h-12 flex items-center justify-center bg-white dark:bg-slate-800 shadow-lg rounded-xl transition">
+            <i :class="isDark ? 'fa-solid fa-sun text-amber-400' : 'fa-solid fa-moon text-indigo-600'"
+                class="text-xl"></i>
+        </button>
+    </div>
+
+    <!-- Main Sign up Card -->
+    <div class="w-full max-w-md p-8 relative z-10" x-show="!showOtpModal" x-transition>
+        <div class="text-center mb-8">
+            <div
+                class="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white mx-auto mb-4 shadow-lg shadow-indigo-500/30">
+                <i class="fa-solid fa-user-plus text-xl"></i>
+            </div>
+            <h1 class="text-3xl font-bold tracking-tight mb-2">Create Account</h1>
+            <p class="text-slate-500 dark:text-slate-400">Join the smartest AI study platform</p>
+        </div>
+
+        <form @submit.prevent="requestOtp"
+            class="bg-white dark:bg-slate-800 p-8 rounded-[2rem] shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-700">
+
+            <!-- Authentic Google Identity Button -->
+            <div class="flex justify-center w-full mb-6">
+                <div id="g_id_onload" data-client_id="YOUR_TEST_CLIENT_ID.apps.googleusercontent.com"
+                    data-context="signup" data-ux_mode="popup" data-callback="handleGoogleCredential"
+                    data-auto_prompt="false">
+                </div>
+
+                <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline"
+                    data-text="signup_with" data-size="large" data-logo_alignment="left" data-width="400">
+                </div>
+            </div>
+
+            <div class="relative flex items-center py-6">
+                <div class="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
+                <span class="flex-shrink-0 mx-4 text-slate-400 text-sm">Or register with email</span>
+                <div class="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
+            </div>
+
+            <div class="mb-5 space-y-1">
+                <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300">Email Address</label>
+                <div class="relative">
+                    <i class="fa-solid fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="email" required placeholder="alex@example.com"
+                        class="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition">
+                </div>
+            </div>
+
+            <div class="mb-5 space-y-1">
+                <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300">Phone Number (For
+                    OTP)</label>
+                <div class="relative">
+                    <i class="fa-solid fa-phone absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="tel" x-model="phone" required placeholder="+1 234 567 890"
+                        class="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition">
+                </div>
+            </div>
+
+            <div class="mb-8 space-y-1">
+                <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300">Password</label>
+                <div class="relative">
+                    <i class="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="password" required placeholder="••••••••"
+                        class="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition">
+                </div>
+            </div>
+
+            <button type="submit"
+                class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl transition transform hover:-translate-y-1 focus:ring-4 focus:ring-indigo-500/50 flex items-center justify-center gap-2">
+                Continue to Verify
+                <i class="fa-solid fa-arrow-right"></i>
+            </button>
+
+            <div class="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
+                Already have an account? <a href="login.html"
+                    class="text-indigo-600 dark:text-indigo-400 font-bold hover:underline">Sign in</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- OTP Modal -->
+    <div x-show="showOtpModal" style="display: none;"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm px-4"
+        x-transition.opacity>
+        <div class="bg-white dark:bg-slate-800 p-8 rounded-[2rem] shadow-2xl w-full max-w-sm border border-slate-100 dark:border-slate-700 relative text-center"
+            @click.away="showOtpModal = false" x-transition.scale>
+
+            <button @click="showOtpModal = false"
+                class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-white bg-slate-100 dark:bg-slate-700 rounded-full transition">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div
+                class="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-green-600 mx-auto mb-4">
+                <i class="fa-solid fa-comment-sms text-2xl"></i>
+            </div>
+            <h2 class="text-2xl font-bold mb-2">Verify Phone</h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">Enter the 4-digit code sent to <strong
+                    class="text-slate-800 dark:text-white" x-text="phone"></strong>.</p>
+
+            <!-- Code indicates testing mode -->
+            <p class="text-xs text-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 p-2 rounded-xl mb-4 font-mono">Demo:
+                Enter 1234</p>
+
+            <form @submit.prevent="verifyOtp">
+                <div class="flex justify-center gap-3 mb-6">
+                    <input type="text" maxlength="1"
+                        class="otp-input w-12 h-14 text-center text-xl font-bold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                        @input="moveNext($event)">
+                    <input type="text" maxlength="1"
+                        class="otp-input w-12 h-14 text-center text-xl font-bold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                        @input="moveNext($event)">
+                    <input type="text" maxlength="1"
+                        class="otp-input w-12 h-14 text-center text-xl font-bold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                        @input="moveNext($event)">
+                    <input type="text" maxlength="1"
+                        class="otp-input w-12 h-14 text-center text-xl font-bold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                        @input="moveNext($event)">
+                </div>
+
+                <p x-show="otpError" class="text-red-500 text-sm font-bold mb-4" x-transition>Invalid code. Try again.
+                </p>
+
+                <button type="submit"
+                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition">
+                    Verify & Create Account
+                </button>
+            </form>
+
+            <div class="mt-6 text-sm text-slate-500">
+                Didn't receive code? <button
+                    class="text-indigo-600 dark:text-indigo-400 font-bold hover:underline">Resend</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Toast -->
+    <div x-show="toast" style="display: none;"
+        class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-green-600 text-white px-6 py-3 rounded-2xl shadow-2xl z-50 flex items-center gap-3"
+        x-transition.translate>
+        <i class="fa-solid fa-circle-check"></i>
+        <span>Account created successfully!</span>
+    </div>
+
+    <script>
+        function signupSetup() {
+            return {
+                isDark: localStorage.getItem('dark') === 'true',
+                showOtpModal: false,
+                phone: '',
+                otpError: false,
+                toast: false,
+
+                toggleTheme() {
+                    this.isDark = !this.isDark;
+                    localStorage.setItem('dark', this.isDark);
+                },
+
+                requestOtp() {
+                    this.showOtpModal = true;
+                    this.otpError = false;
+                    // Auto focus first OTP input
+                    setTimeout(() => {
+                        document.querySelector('.otp-input').focus();
+                    }, 100);
+                },
+
+                moveNext(e) {
+                    if (e.target.value.length === 1) {
+                        const next = e.target.nextElementSibling;
+                        if (next) next.focus();
+                    }
+                },
+
+                async verifyOtp() {
+                    const inputs = document.querySelectorAll('.otp-input');
+                    let code = '';
+                    inputs.forEach(input => code += input.value);
+
+                    if (code === '1234') {
+                        const email = document.querySelector('input[type="email"]').value;
+                        const password = document.querySelector('input[type="password"]').value;
+                        const phone = this.phone;
+                        const name = email.split('@')[0];
+
+                        try {
+                            const res = await fetch('http://localhost:5000/api/auth/register', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ name, email, password, phone })
+                            });
+                            const data = await res.json();
+
+                            if (res.ok) {
+                                this.otpError = false;
+                                this.showOtpModal = false;
+                                this.toast = true;
+                                setTimeout(() => window.location.href = 'login.html', 1500);
+                            } else {
+                                this.otpError = true;
+                                alert(data.error);
+                            }
+                        } catch (err) {
+                            alert('Failed to connect to backend server!');
+                        }
+                    } else {
+                        this.otpError = true;
+                        inputs.forEach(input => input.value = '');
+                        inputs[0].focus();
+                    }
+                }
+            }
+        }
+
+        // If already logged in, redirect to index
+        if (localStorage.getItem('loggedIn') === 'true') {
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+
+</html>

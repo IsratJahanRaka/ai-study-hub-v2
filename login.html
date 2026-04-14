@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en" :class="{ 'dark': isDark }" x-data="loginSetup()">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Study.AI Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        }
+    </script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Google Auth Global Callback -->
+    <script>
+        async function handleGoogleCredential(response) {
+            try {
+                const res = await fetch('http://localhost:5000/api/auth/google', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ credential: response.credential })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    localStorage.setItem('loggedIn', 'true');
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('userProfile', JSON.stringify({
+                        id: data.user.id,
+                        name: data.user.name,
+                        email: data.user.email,
+                        avatar: data.user.avatar,
+                        googleLinked: true
+                    }));
+                    window.location.href = 'index.html';
+                } else {
+                    alert('Google login failed: ' + data.error);
+                }
+            } catch(err) {
+                alert('Backend server is offline! Start it on port 5000.');
+            }
+        }
+    </script>
+</head>
+
+<body
+    class="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 min-h-screen flex items-center justify-center transition-colors duration-300">
+
+    <div class="absolute top-6 right-6">
+        <button @click="toggleTheme()"
+            class="w-12 h-12 flex items-center justify-center bg-white dark:bg-slate-800 shadow-lg rounded-xl transition">
+            <i :class="isDark ? 'fa-solid fa-sun text-amber-400' : 'fa-solid fa-moon text-indigo-600'"
+                class="text-xl"></i>
+        </button>
+    </div>
+
+    <div class="w-full max-w-md p-8">
+        <div class="text-center mb-10">
+            <div
+                class="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center text-white mx-auto mb-4 shadow-lg shadow-indigo-500/30">
+                <i class="fa-solid fa-brain text-3xl"></i>
+            </div>
+            <h1 class="text-3xl font-bold tracking-tight mb-2" x-text="mode === 'admin' ? 'Admin Access' : 'Welcome Back'">Welcome Back</h1>
+            <p class="text-slate-500 dark:text-slate-400" x-text="mode === 'admin' ? 'Secure backend management' : 'Sign in to continue to Study.AI Pro'">Sign in to continue to Study.AI Pro</p>
+        </div>
+
+        <form @submit.prevent="authenticate"
+            class="bg-white dark:bg-slate-800 p-8 rounded-[2rem] shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-700">
+
+            <!-- Login Mode Toggle -->
+            <div class="flex bg-slate-100 dark:bg-slate-700/50 p-1 rounded-xl mb-4">
+                <button type="button" @click="mode = 'student'" :class="mode === 'student' ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-medium'" class="flex-1 py-2.5 text-sm rounded-lg transition-all">Student</button>
+                <button type="button" @click="mode = 'admin'" :class="mode === 'admin' ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-medium'" class="flex-1 py-2.5 text-sm rounded-lg transition-all">Administrator</button>
+            </div>
+
+            <!-- Demo Credentials Helper -->
+            <div class="mb-6 bg-indigo-50 dark:bg-indigo-900/30 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800">
+                <p class="text-xs font-semibold tracking-wider text-indigo-800 dark:text-indigo-400 uppercase mb-2">Demo Credentials</p>
+                <div class="grid grid-cols-2 gap-2 text-sm text-indigo-700 dark:text-indigo-300">
+                    <button type="button" @click="fillDemo('student')" class="text-left bg-white dark:bg-indigo-900/50 p-2 rounded border border-indigo-200 dark:border-indigo-700 hover:bg-slate-50 transition">
+                        <strong>Student</strong><br>student@study.ai<br>student123
+                    </button>
+                    <button type="button" @click="fillDemo('admin')" class="text-left bg-white dark:bg-indigo-900/50 p-2 rounded border border-indigo-200 dark:border-indigo-700 hover:bg-slate-50 transition">
+                        <strong>Admin</strong><br>admin@study.ai<br>admin123
+                    </button>
+                </div>
+            </div>
+
+            <div class="mb-6 space-y-1">
+                <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300" x-text="mode === 'admin' ? 'Admin Email' : 'Email Address'">Email Address</label>
+                <div class="relative">
+                    <i class="fa-solid fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="email" required placeholder="alex@example.com"
+                        class="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition">
+                </div>
+            </div>
+
+            <div class="mb-8 space-y-1">
+                <div class="flex justify-between items-center">
+                    <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300">Password</label>
+                    <a href="#"
+                        class="text-xs text-indigo-600 dark:text-indigo-400 font-semibold hover:underline">Forgot?</a>
+                </div>
+                <div class="relative">
+                    <i class="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="password" required placeholder="••••••••"
+                        class="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition">
+                </div>
+            </div>
+
+            <button type="submit"
+                class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl transition transform hover:-translate-y-1 focus:ring-4 focus:ring-indigo-500/50 flex items-center justify-center gap-2">
+                Sign In
+                <i class="fa-solid fa-arrow-right"></i>
+            </button>
+
+            <div class="relative flex items-center py-6">
+                <div class="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
+                <span class="flex-shrink-0 mx-4 text-slate-400 text-sm">Or sign in with</span>
+                <div class="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
+            </div>
+
+            <!-- Authentic Google Identity Button -->
+            <div id="g_id_onload"
+                 data-client_id="YOUR_TEST_CLIENT_ID.apps.googleusercontent.com"
+                 data-context="signin"
+                 data-ux_mode="popup"
+                 data-callback="handleGoogleCredential"
+                 data-auto_prompt="false">
+            </div>
+            
+            <div class="flex justify-center w-full">
+                <div class="g_id_signin"
+                     data-type="standard"
+                     data-shape="rectangular"
+                     data-theme="outline"
+                     data-text="signin_with"
+                     data-size="large"
+                     data-logo_alignment="left"
+                     data-width="400">
+                </div>
+            </div>
+
+            <div class="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">
+                Don't have an account? <a href="signup.html"
+                    class="text-indigo-600 dark:text-indigo-400 font-bold hover:underline">Sign up</a>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        function loginSetup() {
+            return {
+                isDark: localStorage.getItem('dark') === 'true',
+                mode: 'student',
+
+                toggleTheme() {
+                    this.isDark = !this.isDark;
+                    localStorage.setItem('dark', this.isDark);
+                },
+
+                fillDemo(type) {
+                    this.mode = type;
+                    document.querySelector('input[type="email"]').value = type === 'admin' ? 'admin@study.ai' : 'student@study.ai';
+                    document.querySelector('input[type="password"]').value = type === 'admin' ? 'admin123' : 'student123';
+                },
+
+                async authenticate() {
+                    const email = document.querySelector('input[type="email"]').value;
+                    const password = document.querySelector('input[type="password"]').value;
+                    
+                    // Intercept Demo Accounts safely bypassing MongoDB offline modes
+                    if (email === 'admin@study.ai' || email === 'student@study.ai') {
+                        const role = email === 'admin@study.ai' ? 'admin' : 'student';
+                        
+                        if (this.mode === 'admin' && role !== 'admin') {
+                            alert("Unauthorized: You tried logging into the Admin portal with a student account!");
+                            return;
+                        }
+                        
+                        localStorage.setItem('loggedIn', 'true');
+                        localStorage.setItem('token', 'demo_bypass_token_123');
+                        localStorage.setItem('userProfile', JSON.stringify({
+                            id: role === 'admin' ? "999" : "1",
+                            name: role === 'admin' ? 'Super Admin' : 'Alex Johnson',
+                            email: email,
+                            avatar: 'https://ui-avatars.com/api/?name=' + (role === 'admin' ? 'Super+Admin' : 'Alex+Johnson'),
+                            role: role,
+                            googleLinked: false
+                        }));
+                        
+                        window.location.href = role === 'admin' ? 'admin_dashboard.html' : 'index.html';
+                        return;
+                    }
+
+                    try {
+                        const res = await fetch('http://localhost:5000/api/auth/login', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email, password })
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                            // Enforce Admin strict check
+                            if (this.mode === 'admin' && data.user.role !== 'admin') {
+                                alert("Unauthorized: You do not have administrator privileges.");
+                                return;
+                            }
+
+                            localStorage.setItem('loggedIn', 'true');
+                            localStorage.setItem('token', data.token);
+                            localStorage.setItem('userProfile', JSON.stringify({
+                                id: data.user.id,
+                                name: data.user.name,
+                                email: data.user.email,
+                                avatar: data.user.avatar,
+                                role: data.user.role,
+                                googleLinked: false
+                            }));
+                            
+                            if (this.mode === 'admin') {
+                                window.location.href = 'admin_dashboard.html';
+                            } else {
+                                window.location.href = 'index.html';
+                            }
+                        } else {
+                            alert(data.error || 'Invalid login details.');
+                        }
+                    } catch (err) {
+                        alert('Backend server is offline! Start it on port 5000.');
+                    }
+                },
+            }
+        }
+
+        // If already logged in, redirect to index
+        if (localStorage.getItem('loggedIn') === 'true') {
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+
+</html>
