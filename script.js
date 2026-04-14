@@ -1240,7 +1240,6 @@ function setup() {
             }
 
             try {
-            try {
                 if (useCloudProxy) {
                     const token = localStorage.getItem('token');
                     let response;
@@ -1297,11 +1296,6 @@ function setup() {
                         throw new Error('Malformed response from AI server');
                     }
                 }
-
-                setTimeout(() => {
-                    const chatBox = document.getElementById('chat-container');
-                    if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
-                }, 50);
 
                 if (currentModelConf.provider === 'openai') {
                     const messages = this.chatMessages.map(m => ({
