@@ -92,14 +92,61 @@ body {
     transform: translateY(-5px);
 }
 
-/* Hide Scrollbar but keep functionality */
-::-webkit-scrollbar {
-    width: 6px;
+/* Anti-Gravity Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
-::-webkit-scrollbar-thumb {
-    background: #e2e8f0;
+
+.animate-fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
+}
+
+@keyframes pulseGlow {
+    0% { box-shadow: 0 0 5px rgba(79, 70, 229, 0.4); }
+    50% { box-shadow: 0 0 20px rgba(79, 70, 229, 0.8); }
+    100% { box-shadow: 0 0 5px rgba(79, 70, 229, 0.4); }
+}
+
+.pulse-glow {
+    animation: pulseGlow 2s infinite;
+}
+
+/* Glassmorphism Styles */
+.glass {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.dark .glass {
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Chat Bubble Enhancements */
+.chat-bubble-model {
+    background: rgba(241, 245, 249, 0.8);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(226, 232, 240, 0.5);
+}
+
+.dark .chat-bubble-model {
+    background: rgba(51, 65, 85, 0.8);
+    border: 1px solid rgba(71, 85, 105, 0.5);
+}
+
+/* Custom Scrollbar for Chat */
+#chat-container::-webkit-scrollbar {
+    width: 4px;
+}
+
+#chat-container::-webkit-scrollbar-thumb {
+    background: rgba(79, 70, 229, 0.2);
     border-radius: 10px;
 }
-.dark ::-webkit-scrollbar-thumb {
-    background: #334155;
+
+.dark #chat-container::-webkit-scrollbar-thumb {
+    background: rgba(129, 140, 248, 0.2);
 }
