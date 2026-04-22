@@ -1225,50 +1225,46 @@ function setup() {
             if (!this.chatInput.trim() && !this.chatImage) return;
 
             const userText = this.chatInput.trim();
-            this.isChatting = true;
-
             const userImage = this.chatImage;
+            
+            this.isChatting = true;
             this.chatMessages.push({ role: 'user', text: userText, image: userImage });
             this.chatInput = '';
             this.chatImage = null;
 
             const currentModelConf = this.availableModels.find(m => m.id === this.selectedModel);
-            let useCloudProxy = (currentModelConf.provider === 'cloud');
-
-            if (currentModelConf.provider !== 'cloud' && !this.apiKeys[currentModelConf.provider]) {
-                // If local key is missing, fallback to Cloud server proxy automatically
-                useCloudProxy = true;
-            }
+            const apiKey = this.apiKeys[currentModelConf.provider] || (currentModelConf.provider === 'openrouter' ? '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' : '');
 
             try {
                 // Image Generation Shortcut: If user starts with "/image "
                 if (userText.toLowerCase().startsWith('/image ')) {
                     const prompt = userText.substring(7);
                     const genImg = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&nologo=true&seed=${Date.now()}`;
-                    this.chatMessages.push({ 
-                        role: 'model', 
-                        text: `Generated image for: "${prompt}"`, 
-                        image: genImg 
-                    });
+                    this.chatMessages.push({ role: 'model', text: `Generated image for: "${prompt}"`, image: genImg });
                     this.isChatting = false;
                     this.scrollToBottom('chat-container');
                     return;
                 }
 
-                if (useCloudProxy) {
-                    const token = localStorage.getItem('token');
-                    let response;
+                if (currentModelConf.provider === 'openrouter' || currentModelConf.provider === 'cloud') {
+                    // Unified OpenRouter / Cloud Logic with Vision Support
+                    const OR_KEY = apiKey || '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';
                     
-                    // Direct OpenRouter Fallback for multi-modal support if backend doesn't support it
-                    const OR_KEY = this.apiKeys.openrouter || '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';
-                    
-                    const messageContent = [];
-                    messageContent.push({ type: 'text', text: userText });
-                    if (userImage) {
-                        messageContent.push({ type: 'image_url', image_url: { url: userImage } });
-                    }
+                    // Format message content for multi-modal support
+                    const messages = this.chatMessages.map(m => {
+                        if (m.role === 'user' && m.image) {
+                            return {
+                                role: 'user',
+                                content: [
+                                    { type: 'text', text: m.text },
+                                    { type: 'image_url', image_url: { url: m.image } }
+                                ]
+                            };
+                        }
+                        return { role: m.role === 'model' ? 'assistant' : 'user', content: m.text };
+                    });
 
-                    response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -1277,8 +1273,8 @@ function setup() {
                             'X-Title': 'Study.AI Pro'
                         },
                         body: JSON.stringify({
-                            model: currentModelConf.id === 'cloud-gpt' ? 'google/gemini-2.0-flash-lite-001' : currentModelConf.id,
-                            messages: [{ role: 'user', content: messageContent }]
+                            model: currentModelConf.id,
+                            messages: messages
                         })
                     });
 
@@ -1289,19 +1285,12 @@ function setup() {
                     }
                     
                     if (data.choices && data.choices[0]) {
-                        const content = data.choices[0].message.content;
-                        this.chatMessages.push({ role: 'model', text: content });
-                        this.isChatting = false;
-                        this.scrollToBottom('chat-container');
-                        return;
+                        this.chatMessages.push({ role: 'model', text: data.choices[0].message.content });
+                    } else {
+                        throw new Error('Malformed response from OpenRouter');
                     }
-                }
-                
-                // ... (rest of existing providers handling can follow or be unified)
-                // For simplicity and multi-modal reliability, I'm routing through the direct OpenRouter path above for now
-                // which covers most cases including vision.
-
-                if (currentModelConf.provider === 'openai') {
+                } else if (currentModelConf.provider === 'openai') {
+                    // Standard OpenAI
                     const messages = this.chatMessages.map(m => ({
                         role: m.role === 'model' ? 'assistant' : 'user',
                         content: m.text
@@ -1311,75 +1300,32 @@ function setup() {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${this.apiKeys.openai}`
+                            'Authorization': `Bearer ${apiKey}`
                         },
-                        body: JSON.stringify({ model: currentModelConf.id.replace('openai/', ''), messages: messages })
+                        body: JSON.stringify({ model: currentModelConf.id, messages: messages })
                     });
 
                     const data = await response.json();
-                    if (data.choices && data.choices[0].message.content) {
-                        this.chatMessages.push({ role: 'model', text: data.choices[0].message.content });
-                    } else if (data.error) {
-                        this.chatMessages.push({ role: 'model', text: `OpenAI Error: ${data.error.message}` });
-                    }
+                    if (data.choices) this.chatMessages.push({ role: 'model', text: data.choices[0].message.content });
+                    else throw new Error(data.error?.message || 'OpenAI Error');
                 } else if (currentModelConf.provider === 'google') {
-                    // Google Gemini API Handlers
+                    // Google Gemini Direct
                     const contents = this.chatMessages.map(m => ({
                         role: m.role === 'user' ? 'user' : 'model',
                         parts: [{ text: m.text }]
                     }));
 
-                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${this.selectedModel}:generateContent?key=${this.apiKeys.gemini}`, {
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${currentModelConf.id}:generateContent?key=${apiKey}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ contents: contents })
                     });
 
                     const data = await response.json();
-                    if (data.candidates && data.candidates[0].content.parts[0].text) {
-                        this.chatMessages.push({ role: 'model', text: data.candidates[0].content.parts[0].text });
-                    } else if (data.error) {
-                        this.chatMessages.push({ role: 'model', text: `API Error: ${data.error.message}` });
-                    }
-
-                } else if (currentModelConf.provider === 'openrouter') {
-                    // OpenRouter API Integrations (Free Models & OpenAI)
-                    const messages = this.chatMessages.map(m => ({
-                        role: m.role === 'model' ? 'assistant' : 'user',
-                        content: m.text
-                    }));
-
-                    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${this.apiKeys.openrouter}`,
-                            'HTTP-Referer': window.location.href, // Recommended for OpenRouter
-                            'X-Title': 'Study.AI Pro'
-                        },
-                        body: JSON.stringify({ model: this.selectedModel, messages: messages })
-                    });
-
-                    const data = await response.json();
-                    if (data.choices && data.choices[0].message.content) {
-                        this.chatMessages.push({ role: 'model', text: data.choices[0].message.content });
-                    } else if (data.error) {
-                        this.chatMessages.push({ role: 'model', text: `OpenRouter Error: ${data.error.message}` });
-                    }
-
+                    if (data.candidates) this.chatMessages.push({ role: 'model', text: data.candidates[0].content.parts[0].text });
+                    else throw new Error(data.error?.message || 'Gemini Error');
                 } else if (currentModelConf.provider === 'groq') {
-                    // Groq Fast API (Llama models)
-                    if (!this.apiKeys.groq) {
-                        const key = prompt("Please enter your free Groq API key (Create one easily at console.groq.com):");
-                        if (key) {
-                            this.apiKeys.groq = key.trim();
-                            localStorage.setItem('groq_key', this.apiKeys.groq);
-                        } else {
-                            this.chatMessages.push({ role: 'model', text: `You must supply a Groq API key to use Llama models. Switch back to Gemini if you wish to use the built-in key.` });
-                            return;
-                        }
-                    }
-
+                    // Groq Fast Inference
                     const messages = this.chatMessages.map(m => ({
                         role: m.role === 'model' ? 'assistant' : 'user',
                         content: m.text
@@ -1389,34 +1335,19 @@ function setup() {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${this.apiKeys.groq}`
+                            'Authorization': `Bearer ${apiKey}`
                         },
-                        body: JSON.stringify({ model: this.selectedModel, messages: messages })
+                        body: JSON.stringify({ model: currentModelConf.id, messages: messages })
                     });
 
                     const data = await response.json();
-                    if (data.choices && data.choices[0].message.content) {
-                        this.chatMessages.push({ role: 'model', text: data.choices[0].message.content });
-                    } else if (data.error) {
-                        if (data.error.message.includes('Invalid API Key') || data.error.code === 'invalid_api_key') {
-                            localStorage.removeItem('groq_key');
-                            this.apiKeys.groq = '';
-                        }
-                        this.chatMessages.push({ role: 'model', text: `Groq Error: ${data.error.message}` });
-                    }
+                    if (data.choices) this.chatMessages.push({ role: 'model', text: data.choices[0].message.content });
+                    else throw new Error(data.error?.message || 'Groq Error');
                 }
 
             } catch (err) {
                 console.error("AI API Error:", err);
-                let displayMsg = 'Network error. Could not reach the AI API.';
-                
-                if (err.message && err.message !== 'Failed to fetch') {
-                    displayMsg = `Error: ${err.message}`;
-                } else {
-                    displayMsg = 'Production Update: The local AI server (localhost:5000) is currently offline, switching to Direct Cloud Engine... Please refresh if the error persists.';
-                }
-                
-                this.chatMessages.push({ role: 'model', text: displayMsg });
+                this.chatMessages.push({ role: 'model', text: `Error: ${err.message}. Please check your API key and model selection.` });
             } finally {
                 this.isChatting = false;
                 this.scrollToBottom('chat-container');
