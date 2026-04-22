@@ -516,7 +516,8 @@ function setup() {
             gemini: localStorage.getItem('gemini_key') || '',
             openrouter: localStorage.getItem('openrouter_key') || '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',
             openai: localStorage.getItem('openai_key') || '',
-            groq: localStorage.getItem('groq_key') || ''
+            groq: localStorage.getItem('groq_key') || '',
+            zhipu: localStorage.getItem('zhipu_key') || 'b94be1b6533948d1a438fd8bf4918559.5yXpMkzoN52KGV0k'
         },
 
         userProfile: JSON.parse(localStorage.getItem('userProfile')) || {
@@ -541,11 +542,10 @@ function setup() {
         availableModels: [
             { id: 'google/gemini-2.0-flash-lite-001', name: 'Gemini 2.0 Lite (Free & Vision)', provider: 'openrouter', vision: true },
             { id: 'google/gemini-pro-1.5', name: 'Gemini 1.5 Pro (Advanced Vision)', provider: 'openrouter', vision: true },
-            { id: 'mistralai/pixtral-12b', name: 'Pixtral 12B (Fast Vision)', provider: 'openrouter', vision: true },
+            { id: 'glm-4-flash', name: 'GLM-4 Flash (Ultra Fast)', provider: 'zhipu', vision: false },
+            { id: 'glm-4v', name: 'GLM-4V (Zhipu Vision)', provider: 'zhipu', vision: true },
             { id: 'deepseek/deepseek-chat', name: 'DeepSeek V3 (Coding)', provider: 'openrouter', vision: false },
-            { id: 'meta-llama/llama-3.3-70b-instruct', name: 'Llama 3.3 70B (Pro)', provider: 'openrouter', vision: false },
-            { id: 'qwen/qwen-2.5-72b-instruct', name: 'Qwen 2.5 72B (Free)', provider: 'openrouter', vision: false },
-            { id: 'microsoft/phi-3-medium-128k-instruct:free', name: 'Phi-3 Medium (Free)', provider: 'openrouter', vision: false }
+            { id: 'meta-llama/llama-3.3-70b-instruct', name: 'Llama 3.3 70B (Pro)', provider: 'openrouter', vision: false }
         ],
 
         // Code & Learn Tutorial State
@@ -1343,6 +1343,36 @@ function setup() {
                     const data = await response.json();
                     if (data.choices) this.chatMessages.push({ role: 'model', text: data.choices[0].message.content });
                     else throw new Error(data.error?.message || 'Groq Error');
+                } else if (currentModelConf.provider === 'zhipu') {
+                    // Zhipu AI (BigModel.ai) Implementation
+                    const messages = this.chatMessages.map(m => {
+                        if (m.role === 'user' && m.image) {
+                            return {
+                                role: 'user',
+                                content: [
+                                    { type: 'text', text: m.text },
+                                    { type: 'image_url', image_url: { url: m.image } }
+                                ]
+                            };
+                        }
+                        return { role: m.role === 'model' ? 'assistant' : 'user', content: m.text };
+                    });
+
+                    const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${apiKey}`
+                        },
+                        body: JSON.stringify({ model: currentModelConf.id, messages: messages })
+                    });
+
+                    const data = await response.json();
+                    if (data.choices && data.choices[0]) {
+                        this.chatMessages.push({ role: 'model', text: data.choices[0].message.content });
+                    } else {
+                        throw new Error(data.error?.message || 'Zhipu AI Error');
+                    }
                 }
 
             } catch (err) {
