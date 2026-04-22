@@ -514,7 +514,7 @@ function setup() {
 
         apiKeys: {
             gemini: localStorage.getItem('gemini_key') || '',
-            openrouter: localStorage.getItem('openrouter_key') || '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',
+            openrouter: localStorage.getItem('openrouter_key') || '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',
             openai: localStorage.getItem('openai_key') || '',
             groq: localStorage.getItem('groq_key') || ''
         },
@@ -1260,7 +1260,7 @@ function setup() {
                     let response;
                     
                     // Direct OpenRouter Fallback for multi-modal support if backend doesn't support it
-                    const OR_KEY = this.apiKeys.openrouter || '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';
+                    const OR_KEY = this.apiKeys.openrouter || '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';
                     
                     const messageContent = [];
                     messageContent.push({ type: 'text', text: userText });
