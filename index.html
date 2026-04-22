@@ -1292,6 +1292,153 @@
                 </div>
             </div>
 
+            <!-- StudyGram Full Tab -->
+            <div x-show="currentTab === 'StudyGram'" x-transition style="display: none;" class="w-full h-[calc(100vh-120px)] flex gap-6 overflow-hidden">
+                <!-- Sidebar: Groups & Friends -->
+                <div class="w-80 flex flex-col gap-6 h-full flex-shrink-0">
+                    <!-- Groups Card -->
+                    <div class="card bg-white dark:bg-slate-800 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 shadow-sm flex-1 flex flex-col overflow-hidden">
+                        <div class="p-6 border-b border-slate-50 dark:border-slate-700 flex justify-between items-center">
+                            <h3 class="font-bold text-slate-800 dark:text-white">Study Groups</h3>
+                            <button @click="const name = prompt('Enter group name:'); if(name) createNewGroup(name);" class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center hover:scale-110 transition"><i class="fa-solid fa-plus text-xs"></i></button>
+                        </div>
+                        <div class="flex-1 overflow-y-auto p-2 space-y-1">
+                            <template x-for="group in groups" :key="group.id">
+                                <div class="group-card flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer transition relative">
+                                    <img :src="group.avatar" class="w-10 h-10 rounded-full border-2 border-white dark:border-slate-600 shadow-sm">
+                                    <div class="flex-1 min-w-0">
+                                        <h4 class="text-sm font-bold text-slate-800 dark:text-slate-100 truncate" x-text="group.name"></h4>
+                                        <p class="text-[10px] text-slate-400 truncate" x-text="group.members + ' members'"></p>
+                                    </div>
+                                    <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button @click.stop="const newName = prompt('Rename group to:', group.name); if(newName) renameGroup(group.id, newName);" class="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-600 text-slate-500 dark:text-slate-300 flex items-center justify-center text-[10px] hover:bg-indigo-500 hover:text-white transition"><i class="fa-solid fa-pen"></i></button>
+                                        <button @click.stop="addGroupMember(group.id, 'New Student')" class="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-600 text-slate-500 dark:text-slate-300 flex items-center justify-center text-[10px] hover:bg-green-500 hover:text-white transition"><i class="fa-solid fa-user-plus"></i></button>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Online Members Card -->
+                    <div class="card bg-indigo-600 rounded-[2.5rem] p-6 text-white shadow-lg relative overflow-hidden shrink-0">
+                        <div class="relative z-10">
+                            <h4 class="text-sm font-bold mb-4 flex items-center gap-2"><i class="fa-solid fa-circle text-[8px] text-green-400 animate-pulse"></i> Online Scholars</h4>
+                            <div class="flex -space-x-3 mb-4">
+                                <template x-for="member in registeredMembers.slice(0, 4)">
+                                    <img :src="member.avatar" class="w-10 h-10 rounded-full border-4 border-indigo-600 object-cover shadow-lg">
+                                </template>
+                                <div class="w-10 h-10 rounded-full border-4 border-indigo-600 bg-indigo-500 flex items-center justify-center text-[10px] font-bold">+12</div>
+                            </div>
+                            <button @click="isSearchOpen = true" class="w-full bg-white/20 hover:bg-white/30 py-2.5 rounded-xl text-xs font-bold transition backdrop-blur-md">Search Users</button>
+                        </div>
+                        <i class="fa-solid fa-users absolute -right-4 -bottom-4 text-6xl text-white/10 rotate-12"></i>
+                    </div>
+                </div>
+
+                <!-- Main Content: Feed & Post -->
+                <div class="flex-1 flex flex-col gap-6 h-full overflow-hidden">
+                    <!-- Post Creator -->
+                    <div class="card bg-white dark:bg-slate-800 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 shadow-sm p-6 shrink-0">
+                        <div class="flex gap-4">
+                            <img :src="userProfile.avatar" class="w-12 h-12 rounded-2xl object-cover shadow-md">
+                            <div class="flex-1 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-700 p-2 flex flex-col">
+                                <textarea x-model="newPostContent" placeholder="Share a study note or update..." class="bg-transparent border-none focus:ring-0 text-sm p-2 outline-none resize-none h-20"></textarea>
+                                <div class="flex justify-between items-center p-2 border-t border-slate-100 dark:border-slate-700/50">
+                                    <div class="flex gap-2">
+                                        <button class="w-9 h-9 rounded-xl hover:bg-white dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-500 transition"><i class="fa-solid fa-image text-sm"></i></button>
+                                        <button class="w-9 h-9 rounded-xl hover:bg-white dark:hover:bg-slate-800 text-slate-400 hover:text-green-500 transition"><i class="fa-solid fa-paperclip text-sm"></i></button>
+                                        <button class="w-9 h-9 rounded-xl hover:bg-white dark:hover:bg-slate-800 text-slate-400 hover:text-amber-500 transition"><i class="fa-solid fa-face-smile text-sm"></i></button>
+                                    </div>
+                                    <button @click="if(newPostContent.trim()) { feedPosts.unshift({ id: Date.now(), name: userProfile.name, avatar: userProfile.avatar, time: 'Just now', text: newPostContent, likes: 0, comments: [] }); newPostContent = ''; showToast('Note posted to Global Feed!'); }" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2 rounded-xl text-xs transition shadow-md">Post Note</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Global Feed -->
+                    <div class="flex-1 overflow-y-auto space-y-6 pb-10 scrollbar-hide">
+                        <template x-for="post in feedPosts" :key="post.id">
+                            <div class="card bg-white dark:bg-slate-800 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 shadow-sm p-8 group hover:shadow-md transition-all duration-300">
+                                <div class="flex justify-between items-start mb-6">
+                                    <div class="flex gap-4">
+                                        <img :src="post.avatar" class="w-12 h-12 rounded-2xl object-cover shadow-sm ring-2 ring-slate-50 dark:ring-slate-700">
+                                        <div>
+                                            <h4 class="font-bold text-slate-800 dark:text-white text-[15px]" x-text="post.name"></h4>
+                                            <p class="text-xs text-slate-400 font-medium" x-text="post.time"></p>
+                                        </div>
+                                    </div>
+                                    <button class="text-slate-300 hover:text-slate-500 transition"><i class="fa-solid fa-ellipsis"></i></button>
+                                </div>
+                                <div class="mb-6">
+                                    <p class="text-slate-600 dark:text-slate-300 leading-relaxed text-[15px]" x-text="post.text"></p>
+                                    <div x-show="post.image" class="mt-4 rounded-3xl overflow-hidden border border-slate-100 dark:border-slate-700 shadow-inner">
+                                        <img :src="post.image" class="w-full h-auto">
+                                    </div>
+                                </div>
+                                <div class="flex items-center justify-between pt-6 border-t border-slate-50 dark:border-slate-700/50">
+                                    <div class="flex gap-6">
+                                        <button @click="reactToPost(post.id)" class="flex items-center gap-2 text-slate-400 hover:text-rose-500 transition group/btn">
+                                            <div class="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-900 group-hover/btn:bg-rose-50 dark:group-hover/btn:bg-rose-900/20 flex items-center justify-center transition">
+                                                <i class="fa-solid fa-heart text-sm" :class="post.likes > 0 ? 'text-rose-500' : ''"></i>
+                                            </div>
+                                            <span class="text-xs font-bold" x-text="post.likes"></span>
+                                        </button>
+                                        <button class="flex items-center gap-2 text-slate-400 hover:text-indigo-500 transition group/btn">
+                                            <div class="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-900 group-hover/btn:bg-indigo-50 dark:group-hover/btn:bg-indigo-900/20 flex items-center justify-center transition">
+                                                <i class="fa-solid fa-comment text-sm"></i>
+                                            </div>
+                                            <span class="text-xs font-bold" x-text="post.comments.length"></span>
+                                        </button>
+                                    </div>
+                                    <button @click="sharePost(post)" class="flex items-center gap-2 text-slate-400 hover:text-emerald-500 transition group/btn">
+                                        <div class="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-900 group-hover/btn:bg-emerald-50 dark:group-hover/btn:bg-emerald-900/20 flex items-center justify-center transition">
+                                            <i class="fa-solid fa-share-nodes text-sm"></i>
+                                        </div>
+                                        <span class="text-xs font-bold">Share Note</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- Empty State -->
+                        <div x-show="feedPosts.length === 0" class="flex flex-col items-center justify-center py-20 text-slate-400 text-center gap-4">
+                            <div class="w-24 h-24 rounded-[2rem] bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-4xl shadow-inner">
+                                <i class="fa-solid fa-newspaper opacity-20"></i>
+                            </div>
+                            <h3 class="font-bold text-lg">No global notes yet</h3>
+                            <p class="text-sm max-w-xs">Be the first to share your knowledge with the Study.AI community!</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Sidebar: Notifications & Trends -->
+                <div class="w-72 flex flex-col gap-6 h-full flex-shrink-0 hidden lg:flex">
+                    <div class="card bg-white dark:bg-slate-800 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 shadow-sm p-6">
+                        <h3 class="font-black text-xs uppercase tracking-widest text-slate-400 mb-6 flex items-center gap-2"><i class="fa-solid fa-bolt text-amber-500"></i> Social Feed</h3>
+                        <div class="space-y-6">
+                            <template x-for="notif in socialNotifications.slice(0, 5)">
+                                <div class="flex gap-3">
+                                    <div class="w-2 h-2 rounded-full mt-1.5 bg-indigo-500 shrink-0"></div>
+                                    <div>
+                                        <p class="text-xs font-bold text-slate-700 dark:text-slate-200" x-text="notif.text"></p>
+                                        <span class="text-[10px] text-slate-400" x-text="notif.time"></span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <div class="card bg-gradient-to-br from-indigo-600 to-purple-700 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-xl shadow-indigo-200/50 dark:shadow-none">
+                        <div class="relative z-10">
+                            <h4 class="text-lg font-black mb-2">Build Together</h4>
+                            <p class="text-xs opacity-80 leading-relaxed mb-6">Create a group and invite your friends to start a collaborative study session.</p>
+                            <button @click="const name = prompt('Enter group name:'); if(name) createNewGroup(name);" class="w-full bg-white text-indigo-600 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 transition shadow-lg">Launch Group</button>
+                        </div>
+                        <i class="fa-solid fa-graduation-cap absolute -right-6 -bottom-6 text-7xl text-white/10 rotate-12"></i>
+                    </div>
+                </div>
+            </div>
+
             <div x-show="currentTab === 'Settings'" x-transition style="display: none;" class="w-full max-w-5xl mx-auto">
                 <div class="card bg-white dark:bg-slate-800 p-8 md:p-12 rounded-[2rem] shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-700">
                     <h2 class="text-3xl font-bold mb-8 text-slate-800 dark:text-white">Account Settings</h2>

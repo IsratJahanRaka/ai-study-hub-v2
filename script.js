@@ -33,10 +33,30 @@ function setup() {
         libraryTotalDocs: 0,
         isSearchingLibrary: false,
 
-        // Notification States
-        showNotifications: false,
-        unreadNotices: 0,
-        allNotices: [],
+        // Social / StudyGram States
+        isMessengerOpen: false,
+        activeChatUser: null,
+        messengerInput: '',
+        searchQuery: '',
+        isSearchOpen: false,
+        messengerChats: [],
+        messengerFriends: [],
+        messengerStories: [
+            { id: 'me', name: 'You', avatar: 'https://ui-avatars.com/api/?name=Alex+Johnson&background=4F46E5&color=fff', isMe: true, hasStory: true },
+            { id: 1, name: 'Sabbir', avatar: 'https://ui-avatars.com/api/?name=Sabbir&background=random', hasStory: true },
+            { id: 2, name: 'Raka', avatar: 'https://ui-avatars.com/api/?name=Raka&background=random', hasStory: true }
+        ],
+        registeredMembers: [
+            { id: 101, name: 'Sabbir Hossain', username: '@sabbir_dev', avatar: 'https://ui-avatars.com/api/?name=Sabbir&background=00d2ff', role: 'Student' },
+            { id: 102, name: 'Israt Jahan Raka', username: '@raka_ai', avatar: 'https://ui-avatars.com/api/?name=Raka&background=purple', role: 'Contributor' },
+            { id: 103, name: 'Tahmid Khan', username: '@tahmid_study', avatar: 'https://ui-avatars.com/api/?name=Tahmid&background=green', role: 'Student' }
+        ],
+        groups: [
+            { id: 1, name: 'Physics Masters', avatar: 'https://ui-avatars.com/api/?name=PM&background=blue', members: 12, lastMsg: 'Sabbir: Check out the new notes!' },
+            { id: 2, name: 'Web Dev 2024', avatar: 'https://ui-avatars.com/api/?name=WD&background=orange', members: 45, lastMsg: 'Raka: Zoom link is live.' }
+        ],
+        friends: [],
+        socialNotifications: [],
 
         initNotices() {
             const defaultNotices = [
@@ -319,10 +339,34 @@ function setup() {
                 id: Date.now(),
                 name: name || 'New Study Group',
                 avatar: `https://ui-avatars.com/api/?name=${name ? name.charAt(0) : 'G'}&background=random`,
-                members: 1
+                members: 1,
+                lastMsg: 'Group created'
             };
             this.groups.unshift(newGroup);
             this.showToast('Group created successfully!');
+        },
+
+        renameGroup(groupId, newName) {
+            const group = this.groups.find(g => g.id === groupId);
+            if (group && newName.trim()) {
+                group.name = newName;
+                group.avatar = `https://ui-avatars.com/api/?name=${newName.charAt(0)}&background=random`;
+                this.showToast('Group renamed successfully!');
+            }
+        },
+
+        sharePost(post) {
+            const sharedPost = {
+                ...post,
+                id: Date.now(),
+                name: this.userProfile.name,
+                avatar: this.userProfile.avatar,
+                time: 'Just now',
+                text: `Shared from ${post.name}: ${post.text}`,
+                isShared: true
+            };
+            this.feedPosts.unshift(sharedPost);
+            this.showToast('Post shared to your feed!');
         },
 
         addFriend(member) {
